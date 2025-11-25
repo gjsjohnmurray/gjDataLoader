@@ -6,16 +6,18 @@ var tmrPlaceholder = null;
 window.addEventListener('message', event => {
 
   const message = event.data; // The JSON data our extension sent
-  switch (message.command) {
+  const selectTable = document.querySelector('#selectTable');
+	const colTable = document.querySelector('#tblColumns');
+	switch (message.command) {
     case 'load':
       //console.log(message.serverSpec);
       //console.log(message.namespace);
-      //console.log(message.registryRows);
-      //console.log(message.moduleRows);
+      //console.log(message.schemata);
+      //console.log(message.dataFiles);
       break;
     case 'tables':
-			const selectTable = document.querySelector('#selectTable');
 			selectTable.innerHTML = '';
+			colTable.innerHTML = '';
 			message.tables.forEach((table) => {
 				const option = document.createElement('vscode-option');
 				option.value = table.TableName;
@@ -26,7 +28,6 @@ window.addEventListener('message', event => {
 			});
       break;
 		case 'columns':
-			const colTable = document.querySelector('#tblColumns');
 			colTable.innerHTML = '';
 			const colHeader = document.createElement('vscode-table-header');
 			colHeader.slot = 'header';
@@ -49,10 +50,25 @@ window.addEventListener('message', event => {
 			});
 			colTable.appendChild(colBody);
 			break;
+		case 'filePreview':
+			const collPreview = document.querySelector('#collPreview');
+			const taFilePreview = document.querySelector('#taFilePreview');
+			if (!message.fileName) {
+				collPreview.open=false;
+				collPreview.description = "";
+				taFilePreview.value = '';
+				return;
+			}
+			collPreview.description = `First 10 lines of '${message.fileName}'`;
+			taFilePreview.value = message.previewLines || '';
+			collPreview.open=true;
+			break;
   }
 });
 
 window.onload = function() {
+
+	document.querySelector('#taFilePreview').wrappedElement.setAttribute('style', 'resize: both; white-space: nowrap;');
 
 	document.querySelector('#selectSchema').addEventListener('change', (event) => {
 		const select = event.target;
@@ -71,96 +87,38 @@ window.onload = function() {
 		vscode.postMessage({ command: 'uploadFile' });
 	});
 
-  const tfCommand = document.querySelector('#tfCommand');
-  const taOutput = document.querySelector('#taOutput');
-
-  document.querySelector('#radioRepoNoModule').checked = true;
-  document.querySelectorAll('.radioRepoModule').forEach((radio) => {
-    if (radio.id === 'radioRepoNoModule') {
-      radio.addEventListener('click', (_event) => {
-        document.querySelectorAll('.cmdRepoButton').forEach((btn) => {
-          btn.disabled = true;
-        });
-      });
-    } else {
-      radio.addEventListener('click', (_event) => {
-        document.querySelectorAll('.cmdRepoButton').forEach((btn) => {
-          btn.disabled = false;
-        });
-      });
-    }
-  });
-
-  document.querySelectorAll('.cmdRepoButton').forEach((btn) => {
+  document.querySelectorAll('.btnPreviewFile').forEach((btn) => {
     btn.addEventListener('click', (_event) => {
-      var repo = btn.dataset.reponame;
-      var module;
-      document.querySelectorAll('.radioRepoModule').forEach((el) => {
-        if (el.checked) {
-          module = el.dataset.module;
-        }
-      });
-      if (repo && module) {
-        const text = `${btn.dataset.command} ${repo}/${module}`;
-        vscode.postMessage({ command: 'input', text });
-        tfCommand.value = text;
-        tfCommand.wrappedElement.setSelectionRange(0, text.length);
-        tfCommand.wrappedElement.focus();
-      }
-    });
-  });
+			vscode.postMessage({ command: 'previewFile', fileName: btn.dataset.filename });
+		});
+	});
 
-  document.querySelectorAll('.radioModule').forEach((radio) => {
-    radio.addEventListener('click', (_event) => {
-      document.querySelectorAll('.cmdButton').forEach((btn) => {
-        btn.disabled = false;
-      });
-    });
-  });
-
-  document.querySelectorAll('.btnOpenModuleRepo').forEach((btn) => {
+  document.querySelectorAll('.btnDeleteFile').forEach((btn) => {
     btn.addEventListener('click', (_event) => {
-      vscode.postMessage({ command: 'openExternal', url: btn.dataset.url });
-    });
+			vscode.postMessage({ command: 'deleteFile', fileName: btn.dataset.filename });
+		});
+	});
+
+  document.querySelectorAll('.radioFileName').forEach((radio) => {
+		radio.addEventListener('click', (_event) => {
+			const fileName = radio.dataset.filename;
+			const collPreview = document.querySelector('#collPreview');
+			collPreview.open = false;
+			collPreview.value = '';
+			collPreview.dataset.filename = fileName;
+			collPreview.description = fileName ? `First 10 lines of '${fileName}'` : '';
+			vscode.postMessage({ command: 'selectFile', fileName });
+		});
   });
 
-  document.querySelectorAll('.cmdButton').forEach((btn) => {
-    btn.addEventListener('click', (_event) => {
-      var module;
-      document.querySelectorAll('.radioModule').forEach((el) => {
-        if (el.checked) {
-          module = el.dataset.module;
-        }
-      });
-      if (module) {
-        const text = `${btn.dataset.command} ${module}`;
-        vscode.postMessage({ command: 'input', text });
-        tfCommand.value = text;
-        tfCommand.wrappedElement.setSelectionRange(0, text.length);
-        tfCommand.wrappedElement.focus();
-      }
-    });
-  });
-
-  tfCommand.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
-      vscode.postMessage({ command: 'input', text: tfCommand.value });
-    }
-  });
-  tfCommand.style.width = taOutput.offsetWidth + 'px';
-
-  taOutput.wrappedElement.style.whiteSpaceCollapse = 'preserve';
-  taOutput.wrappedElement.style.textWrap = 'nowrap';
-
-  const btnHelp = document.querySelector('#btnHelp');
-  btnHelp.addEventListener('click', (_event) => {
-    vscode.postMessage({ command: 'openExternal', url: 'https://github.com/intersystems/ipm/wiki/02.-CLI-commands' });
-  });
-  const btnClear = document.querySelector('#btnClear');
-  btnClear.addEventListener('click', (_event) => {
-    tfCommand.value = '';
-    taOutput.value = '';
-  });
+	document.querySelector('#collPreview').addEventListener('vsc-collapsible-toggle', (event) => {
+		const collPreview = event.target;
+		const fileName = collPreview.dataset.filename;
+		if (fileName && collPreview.open) {
+			document.querySelector('#taFilePreview').value = 'Loading preview...';
+			vscode.postMessage({ command: 'previewFile', fileName });
+		}
+	});
 
   vscode.postMessage({ command: 'ready' });
   };

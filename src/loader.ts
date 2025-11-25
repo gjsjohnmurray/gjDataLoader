@@ -84,6 +84,8 @@ export class Loader extends vscode.Disposable {
             async (message) => {
 				let schema: string;
 				let table: string;
+				let destinationUri: vscode.Uri;
+				let fileName: string;
                 switch (message.command) {
                     case "ready":
                         webview.postMessage({
@@ -91,6 +93,7 @@ export class Loader extends vscode.Disposable {
                             serverSpec: this._serverSpec,
                             namespace: this.namespace,
                             schemata,
+							dataFiles,
                         });
                         return;
                     case "schemaChanged":
@@ -149,6 +152,48 @@ export class Loader extends vscode.Disposable {
 							columns,
 						});
 						return;
+					case "selectFile":
+						fileName = message.fileName;
+						// TODO
+						return;
+					case "previewFile":
+						fileName = message.fileName;
+						destinationUri = vscode.Uri.joinPath(this.serverFolder(), fileName);
+						try {
+							const previewData = await vscode.workspace.fs.readFile(destinationUri);
+							const previewText = new TextDecoder().decode(previewData);
+							const previewLines = previewText.split(/\r?\n/).slice(0, 10).join('\n');
+							webview.postMessage({
+								command: "filePreview",
+								fileName,
+								previewLines,
+							});
+						} catch (_error) {
+							// File does not exist, continue
+						}
+						return;
+					case "deleteFile":
+						fileName = message.fileName;
+						destinationUri = vscode.Uri.joinPath(this.serverFolder(), fileName);
+						try {
+							if (await vscode.workspace.fs.stat(destinationUri)) {
+								const ok = await vscode.window.showWarningMessage(
+									`Delete '${fileName}' from server '${this.serverId}' for namespace '${this.namespace}'?`,
+									{ modal: true, },
+									{ title: 'Yes' },
+									{ title: 'No', isCloseAffordance: true },
+								);
+								if (ok?.title !== 'Yes') {
+									return;
+								}
+							}
+							await vscode.workspace.fs.delete(destinationUri);
+							vscode.window.showInformationMessage(`Deleted file '${fileName}' from server '${this.serverId}' for namespace '${this.namespace}'.`);
+
+						} catch (_error) {
+							// File does not exist, continue
+						}
+						return;
 					case "uploadFile":
 						const file = await vscode.window.showOpenDialog({
 							canSelectMany: false,
@@ -159,22 +204,28 @@ export class Loader extends vscode.Disposable {
 						}
 						const fileUri = file[0];
 						const fileData = await vscode.workspace.fs.readFile(fileUri);
-						const fileName = fileUri.path.split('/').pop();
+						fileName = fileUri.path.split('/').pop() || "";
 						if (!fileName) {
 							return;
 						}
-						const destinationUri = vscode.Uri.joinPath(this.serverFolder(), fileName);
-						if (await vscode.workspace.fs.stat(destinationUri)) {
-							const overwrite = await vscode.window.showWarningMessage(
-								`File '${fileName}' already exists on server '${this.serverId}' for namespace '${this.namespace}'. Overwrite?`,
-								{ modal: true, },
-								{ title: 'Yes' },
-								{ title: 'No', isCloseAffordance: true },
-							);
-							if (overwrite?.title !== 'Yes') {
-								return;
+						destinationUri = vscode.Uri.joinPath(this.serverFolder(), fileName);
+						try {
+							if (await vscode.workspace.fs.stat(destinationUri)) {
+								const overwrite = await vscode.window.showWarningMessage(
+									`File '${fileName}' already exists on server '${this.serverId}' for namespace '${this.namespace}'. Overwrite?`,
+									{ modal: true, },
+									{ title: 'Yes' },
+									{ title: 'No', isCloseAffordance: true },
+								);
+								if (overwrite?.title !== 'Yes') {
+									return;
+								}
 							}
+
+						} catch (_error) {
+							// File does not exist, continue
 						}
+
 						await vscode.workspace.fs.writeFile(
 							destinationUri,
 							fileData
@@ -213,6 +264,45 @@ export class Loader extends vscode.Disposable {
     />
   </head>
   <body>
+
+	<p>
+    <vscode-collapsible title="Data Files" description="Choose a server file" open>
+        <vscode-table zebra bordered-columns resizable columns='["95%", "5%"]'>
+          <vscode-table-header slot="header">
+            <vscode-table-header-cell>Name</vscode-table-header-cell>
+            <vscode-table-header-cell>Actions</vscode-table-header-cell>
+          </vscode-table-header>
+          <vscode-table-body slot="body">`
++   (dataFiles?.length > 0
+        ? dataFiles
+            .map(dataFile => `
+            <vscode-table-row title="${dataFile[0]}">
+              <vscode-table-cell>
+			    <vscode-radio class="radioFileName" name="radioFileName" title="Select '${dataFile[0]}'" data-filename="${dataFile[0]}">
+			      ${dataFile[0]}
+			    </vscode-radio>
+			  </vscode-table-cell>
+              <vscode-table-cell>
+			  	<span title="Delete '${dataFile[0]}'">
+			      <vscode-icon class="btnDeleteFile" name="trash" action-icon label="Delete '${dataFile[0]}'" data-filename="${dataFile[0]}"></vscode-icon>
+			    </span>
+			  </vscode-table-cell>
+            </vscode-table-row>`
+            )
+            .join("")
+        : ""
+    )
++ `
+        </vscode-table>
+        <vscode-divider></vscode-divider>
+		<vscode-button id="cmdUploadFile" title="Choose a local file and upload it to the server">Upload New File to Server</vscode-button>
+    </vscode-collapsible>
+    </p>
+	<p>
+	    <vscode-collapsible title="Preview" id="collPreview" description="(no file selected))">
+		  <vscode-textarea id="taFilePreview" monospace rows="5" cols="80" readonly value="Select a data file"></vscode-textarea>
+		</vscode-collapsible>
+	</p>
     <p>
 	<vscode-label for="selectSchema">Schema:</vscode-label>
 	<vscode-single-select id="selectSchema" combobox>`
@@ -240,34 +330,7 @@ export class Loader extends vscode.Disposable {
 + `
           </vscode-table-body>
         </vscode-table>
-    </vscode-collapsible>
-    </p>
-
-	<p>
-    <vscode-collapsible title="Available Files" description="Data files uploaded to server" open>
-        <vscode-table zebra bordered-columns resizable columns='["95%", "5%"]'>
-          <vscode-table-header slot="header">
-            <vscode-table-header-cell>Name</vscode-table-header-cell>
-            <vscode-table-header-cell>Actions</vscode-table-header-cell>
-          </vscode-table-header>
-          <vscode-table-body slot="body">`
-+   (dataFiles?.length > 0
-        ? dataFiles
-            .map(dataFile => `
-            <vscode-table-row>
-              <vscode-table-cell>${dataFile[0]}</vscode-table-cell>
-              <vscode-table-cell><vscode-icon class="btnDeleteFile" name="trash" action-icon title="${dataFile[0]}" data-fileName="${dataFile[0]}"></vscode-icon></vscode-table-cell>
-            </vscode-table-row>`
-            )
-            .join("")
-        : ""
-    )
-+ `
-        </vscode-table>
         <vscode-divider></vscode-divider>
-		<vscode-button id="cmdUploadFile" title="Choose a local file and upload it to the server">Upload New File to Server</vscode-button>
-		`
-+ `
     </vscode-collapsible>
     </p>
 
