@@ -1,0 +1,21 @@
+    zn "%SYS"
+
+    // Unexpire passwords and set up passwordless mode to simplify dev use.
+    // ** Comment out these two line for Production use **
+    do ##class(Security.Users).UnExpireUserPasswords("*")
+    //zpm "install passwordless"
+
+    // create namespaces
+    do $SYSTEM.OBJ.Load("/home/irisowner/dev/App.Installer.cls", "ck")
+    set sc = ##class(App.Installer).setup()
+
+    zn "DATALOAD-DEMO"
+
+    // Load classes
+    do $SYSTEM.OBJ.LoadDir("/home/irisowner/dev/src", "ck",,1)
+
+    // Create /_vscode web app to support transfer of data files from client to server
+    zpm "install vscode-per-namespace-settings"
+
+    //zpm "load /home/irisowner/dev/ -v":1:1
+    halt

@@ -1,0 +1,38 @@
+{
+	"folders": [
+		{
+			"path": "datafiles"
+		},
+		{
+			"name": "iris:DATALOAD-DEMO",
+			"uri": "isfs://iris:dataload-demo/"
+		},
+		{
+			"name": "iris (/_vscode)",
+			"uri": "isfs://iris:%sys/_vscode?csp"
+		}
+	],
+	"settings": {
+		"intersystems.servers": {
+			"iris": {
+				"webServer": {
+					"scheme": "http",
+					"host": "localhost",
+					"port": 52773,
+					"pathPrefix": "/iris",
+				},
+				"superServer": {
+					"host": "localhost",
+					"port": 1972,
+				},
+				"username": "SuperUser",
+				"password": "SYS",
+			},
+		},
+		"objectscript.conn": {
+			"server": "iris",
+			"ns": "DATALOAD-DEMO",
+			"active": false
+		},
+	}
+}

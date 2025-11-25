@@ -1,0 +1,28 @@
+# Run 'vsce ls' to verify that the following lines exclude everything not needed in the VSIX.
+# Keep .vscodeignore_linux-x64, .vscodeignore_win32-x64, .vscodeignore_darwin-x64, .vscodeignore_darwin-arm64 in sync with this file apart from their specific
+#  !node_modules/@intersystems/intersystems-iris-native/bin/... line.
+# During CI `vsce package --target XXX` we should add the `--ignore-file .vscodeignore_XXX` option to use the matching .vscodeignore_XXX file
+
+**
+!dist/*.dll
+!dist/*.dylib
+!dist/*.so
+!dist/*.js
+!dist/*.node
+!dist/*.txt
+
+# binaries for all targets (making VSIX huge).
+!node_modules/@intersystems/intersystems-iris-native/bin/
+
+!node_modules/@intersystems/intersystems-iris-native/src/
+!node_modules/@intersystems/intersystems-iris-native/package.json
+!node_modules/decimal.js/
+!node_modules/yargs/
+!out/
+!images/
+!CHANGELOG.md
+!LICENSE
+!README.md
+!package.json
+!package.nls.json
+!server/

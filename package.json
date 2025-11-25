@@ -1,0 +1,97 @@
+{
+  "name": "data-loader",
+  "displayName": "gj :: dataLoader",
+  "description": "Load data into InterSystems IRIS servers from text files",
+  "version": "0.0.1-SNAPSHOT",
+  "preview": true,
+  "publisher": "georgejames",
+  "icon": "images/extension-icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gjsjohnmurray/gjDataLoader"
+  },
+  "license": "MIT",
+  "keywords": [
+    "intersystems",
+    "iris"
+  ],
+  "contributors": [
+    {
+      "name": "John Murray",
+      "email": "johnm@georgejames.com"
+    }
+  ],
+  "engines": {
+    "vscode": "^1.106.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "private": true,
+  "extensionDependencies": [
+    "intersystems-community.servermanager"
+  ],
+  "activationEvents": [
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "georgejames.data-loader.intersystems-servermanager",
+        "title": "Load Data",
+        "icon": "$(table)"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "georgejames.data-loader.intersystems-servermanager",
+          "when": "false"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "georgejames.data-loader.intersystems-servermanager",
+          "when": "view == intersystems-community_servermanager && viewItem =~ /namespace$/",
+          "group": "inline@90"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run webpack",
+    "compile": "webpack",
+    "watch": "webpack --watch --progress",
+    "webpack": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "dependencies": {
+    "@intersystems-community/intersystems-servermanager": "^3.10.2",
+    "@vscode/codicons": "^0.0.42",
+    "@vscode-elements/elements": "^2.3.1",
+    "axios": "^1.13.2"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.0.0",
+    "@types/mocha": "^10.0.0",
+    "@types/node": "22.x",
+    "@types/vscode": "^1.106.0",
+    "@typescript-eslint/eslint-plugin": "^8.45.0",
+    "@typescript-eslint/parser": "^8.45.0",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^8.24.0",
+    "glob": "^8.0.3",
+    "mocha": "^10.0.0",
+    "node-loader": "^2.0.0",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.6.3",
+    "webpack": "^5.102.0",
+    "webpack-cli": "^4.10.0"
+  }
+}
