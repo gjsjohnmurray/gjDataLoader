@@ -6,39 +6,34 @@ var tmrPlaceholder = null;
 window.addEventListener('message', event => {
 
   const message = event.data; // The JSON data our extension sent
-  const selectTable = document.querySelector('#selectTable');
-	const colTable = document.querySelector('#tblColumns');
+  const selTable = document.querySelector('#selTable');
+	const tblbodyColumns = document.querySelector('#tblbodyColumns');
+	const tblbodyFiles = document.querySelector('#tblbodyFiles');
+	const collFiles = document.querySelector('#collFiles');
+	const collColumns = document.querySelector('#collColumns');
 	switch (message.command) {
     case 'load':
       //console.log(message.serverSpec);
       //console.log(message.namespace);
       //console.log(message.schemata);
-      //console.log(message.dataFiles);
       break;
     case 'tables':
-			selectTable.innerHTML = '';
-			colTable.innerHTML = '';
+			selTable.innerHTML = '';
+			collColumns.open = false;
+			collColumns.description = "Select schema and table above"; // keep in sync with loader.ts
+			tblbodyColumns.innerHTML = '';
 			message.tables.forEach((table) => {
 				const option = document.createElement('vscode-option');
 				option.value = table.TableName;
 				option.textContent = table.TableName;
 				const description = table.Description.replace(/<br\s*\/?>/gi, '\n') || '';
 				option.description = description.length > 200 ? description.substring(0, 197) + '...' : description;
-				selectTable.appendChild(option);
+				selTable.appendChild(option);
 			});
       break;
 		case 'columns':
-			colTable.innerHTML = '';
-			const colHeader = document.createElement('vscode-table-header');
-			colHeader.slot = 'header';
-			colHeader.innerHTML = `
-				<vscode-table-header-cell>Name</vscode-table-header-cell>
-				<vscode-table-header-cell>DataType</vscode-table-header-cell>
-				<vscode-table-header-cell>Description</vscode-table-header-cell>
-			`;
-			colTable.appendChild(colHeader);
-			const colBody = document.createElement('vscode-table-body');
-			colBody.slot = 'body';
+			tblbodyColumns.innerHTML = '';
+			collColumns.description = `Structure of table '${message.schema}.${message.table}'`;
 			message.columns.forEach((column) => {
 				const row = document.createElement('vscode-table-row');
 				row.innerHTML = `
@@ -46,22 +41,65 @@ window.addEventListener('message', event => {
 					<vscode-table-cell>${column.DataType}</vscode-table-cell>
 					<vscode-table-cell>${column.Description || ''}</vscode-table-cell>
 				`;
-				colBody.appendChild(row);
+				tblbodyColumns.appendChild(row);
 			});
-			colTable.appendChild(colBody);
+			collColumns.open = true;
+			// Below gives a script error with v2.3.1 - see https://github.com/vscode-elements/elements/issues/561
+			// tblColumns.columns = tblColumns.columns; // force refresh
+			break;
+		case 'dataFiles':
+			tblbodyFiles.innerHTML = '';
+			message.dataFiles.forEach((dataFile) => {
+				const row = document.createElement('vscode-table-row');
+				row.title=dataFile[0];
+				row.innerHTML = `
+          <vscode-table-cell>
+						<vscode-radio class="radioFileName" name="radioFileName" title="Select '${dataFile[0]}'" data-filename="${dataFile[0]}">
+							${dataFile[0]}
+						</vscode-radio>
+				  </vscode-table-cell>
+          <vscode-table-cell>
+						<span title="Delete '${dataFile[0]}'">
+							<vscode-icon class="btnDeleteFile" name="trash" action-icon label="Delete '${dataFile[0]}'" data-filename="${dataFile[0]}"></vscode-icon>
+						</span>
+					</vscode-table-cell>
+					`;
+				tblbodyFiles.appendChild(row);
+			});
+
+			document.querySelectorAll('.radioFileName').forEach((radio) => {
+				radio.addEventListener('click', (_event) => {
+					const fileName = radio.dataset.filename;
+					const collPreview = document.querySelector('#collPreview');
+					collPreview.open = false;
+					collPreview.value = '';
+					collPreview.dataset.filename = fileName;
+					collPreview.description = fileName ? `Expand to fetch '${fileName}' and display first 10 lines` : 'Select data file above'; // keep in sync with loader.ts
+					vscode.postMessage({ command: 'selectFile', fileName });
+				});
+			});
+
+			document.querySelectorAll('.btnDeleteFile').forEach((btn) => {
+				btn.addEventListener('click', (_event) => {
+					vscode.postMessage({ command: 'deleteFile', fileName: btn.dataset.filename });
+				});
+			});
+			collFiles.open = true;
+			// Below gives a script error with v2.3.1 - see https://github.com/vscode-elements/elements/issues/561
+			//tblFiles.columns = tblFiles.columns; // force refresh
 			break;
 		case 'filePreview':
 			const collPreview = document.querySelector('#collPreview');
 			const taFilePreview = document.querySelector('#taFilePreview');
 			if (!message.fileName) {
-				collPreview.open=false;
-				collPreview.description = "";
+				collPreview.open = false;
+				collPreview.description = "Select data file above"; // keep in sync with loader.ts
 				taFilePreview.value = '';
 				return;
 			}
 			collPreview.description = `First 10 lines of '${message.fileName}'`;
 			taFilePreview.value = message.previewLines || '';
-			collPreview.open=true;
+			collPreview.open = true;
 			break;
   }
 });
@@ -70,15 +108,15 @@ window.onload = function() {
 
 	document.querySelector('#taFilePreview').wrappedElement.setAttribute('style', 'resize: both; white-space: nowrap;');
 
-	document.querySelector('#selectSchema').addEventListener('change', (event) => {
+	document.querySelector('#selSchema').addEventListener('change', (event) => {
 		const select = event.target;
 		const schema = select.value;
 		vscode.postMessage({ command: 'schemaChanged', schema });
 	});
 
-	document.querySelector('#selectTable').addEventListener('change', (event) => {
+	document.querySelector('#selTable').addEventListener('change', (event) => {
 		const select = event.target;
-		const schema = document.querySelector('#selectSchema').value;
+		const schema = document.querySelector('#selSchema').value;
 		const table = select.value;
 		vscode.postMessage({ command: 'tableChanged', schema, table });
 	});
@@ -87,29 +125,9 @@ window.onload = function() {
 		vscode.postMessage({ command: 'uploadFile' });
 	});
 
-  document.querySelectorAll('.btnPreviewFile').forEach((btn) => {
-    btn.addEventListener('click', (_event) => {
-			vscode.postMessage({ command: 'previewFile', fileName: btn.dataset.filename });
-		});
+	document.querySelector('#cmdRefresh').addEventListener('click', (event) => {
+		vscode.postMessage({ command: 'refreshFileList' });
 	});
-
-  document.querySelectorAll('.btnDeleteFile').forEach((btn) => {
-    btn.addEventListener('click', (_event) => {
-			vscode.postMessage({ command: 'deleteFile', fileName: btn.dataset.filename });
-		});
-	});
-
-  document.querySelectorAll('.radioFileName').forEach((radio) => {
-		radio.addEventListener('click', (_event) => {
-			const fileName = radio.dataset.filename;
-			const collPreview = document.querySelector('#collPreview');
-			collPreview.open = false;
-			collPreview.value = '';
-			collPreview.dataset.filename = fileName;
-			collPreview.description = fileName ? `First 10 lines of '${fileName}'` : '';
-			vscode.postMessage({ command: 'selectFile', fileName });
-		});
-  });
 
 	document.querySelector('#collPreview').addEventListener('vsc-collapsible-toggle', (event) => {
 		const collPreview = event.target;

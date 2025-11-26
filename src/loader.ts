@@ -11,6 +11,7 @@ export class Loader extends vscode.Disposable {
     private _disposables: vscode.Disposable[] = [];
     private _serverSpec: IServerSpec | undefined;
     private _panel: vscode.WebviewPanel | undefined;
+	private _serverFolderPath: string = "";
 
     constructor(serverId: string, namespace: string) {
         super(() => {
@@ -35,8 +36,23 @@ export class Loader extends vscode.Disposable {
             await resolveCredentials(serverSpec);
         }
         this._serverSpec = serverSpec;
-
-		const dataFiles = await vscode.workspace.fs.readDirectory(this.serverFolder());
+        response = await makeRESTRequest(
+            "POST",
+            this._serverSpec,
+            { apiVersion: 1, namespace: "%SYS", path: "/action/query" },
+            { query: "CALL Security.Applications_Detail('/_vscode',2)" }
+        );
+        if (!response) {
+            return `Failed to query server '${this.serverId}' for /_vscode web application.`;
+        }
+        if (response?.status !== 200) {
+            return `Failed to query server '${this.serverId}'  for /_vscode web application. Status: ${response?.status}`;
+        }
+        const appDetails = response.data?.result?.content;
+        if (appDetails[0]?.Name !== '/_vscode') {
+            return `No /_vscode web application available on server '${this.serverId}'.`;
+        }
+		this._serverFolderPath = `${appDetails[0].Path}/${this.namespace}/DataLoader/`;
 
         response = await makeRESTRequest(
             "POST",
@@ -93,7 +109,10 @@ export class Loader extends vscode.Disposable {
                             serverSpec: this._serverSpec,
                             namespace: this.namespace,
                             schemata,
-							dataFiles,
+                        });
+                        webview.postMessage({
+                            command: "dataFiles",
+							dataFiles: await vscode.workspace.fs.readDirectory(this.serverFolderUri()),
                         });
                         return;
                     case "schemaChanged":
@@ -158,7 +177,7 @@ export class Loader extends vscode.Disposable {
 						return;
 					case "previewFile":
 						fileName = message.fileName;
-						destinationUri = vscode.Uri.joinPath(this.serverFolder(), fileName);
+						destinationUri = vscode.Uri.joinPath(this.serverFolderUri(), fileName);
 						try {
 							const previewData = await vscode.workspace.fs.readFile(destinationUri);
 							const previewText = new TextDecoder().decode(previewData);
@@ -174,7 +193,7 @@ export class Loader extends vscode.Disposable {
 						return;
 					case "deleteFile":
 						fileName = message.fileName;
-						destinationUri = vscode.Uri.joinPath(this.serverFolder(), fileName);
+						destinationUri = vscode.Uri.joinPath(this.serverFolderUri(), fileName);
 						try {
 							if (await vscode.workspace.fs.stat(destinationUri)) {
 								const ok = await vscode.window.showWarningMessage(
@@ -189,7 +208,10 @@ export class Loader extends vscode.Disposable {
 							}
 							await vscode.workspace.fs.delete(destinationUri);
 							vscode.window.showInformationMessage(`Deleted file '${fileName}' from server '${this.serverId}' for namespace '${this.namespace}'.`);
-
+							webview.postMessage({
+								command: "dataFiles",
+								dataFiles: await vscode.workspace.fs.readDirectory(this.serverFolderUri()),
+							});
 						} catch (_error) {
 							// File does not exist, continue
 						}
@@ -208,7 +230,7 @@ export class Loader extends vscode.Disposable {
 						if (!fileName) {
 							return;
 						}
-						destinationUri = vscode.Uri.joinPath(this.serverFolder(), fileName);
+						destinationUri = vscode.Uri.joinPath(this.serverFolderUri(), fileName);
 						try {
 							if (await vscode.workspace.fs.stat(destinationUri)) {
 								const overwrite = await vscode.window.showWarningMessage(
@@ -231,6 +253,16 @@ export class Loader extends vscode.Disposable {
 							fileData
 						);
 						vscode.window.showInformationMessage(`Uploaded file '${fileName}' to server '${this.serverId}' for namespace '${this.namespace}'.`);
+						webview.postMessage({
+                            command: "dataFiles",
+							dataFiles: await vscode.workspace.fs.readDirectory(this.serverFolderUri()),
+                        });
+						return;
+					case "refreshFileList":
+						webview.postMessage({
+                            command: "dataFiles",
+							dataFiles: await vscode.workspace.fs.readDirectory(this.serverFolderUri()),
+                        });
 						return;
                 }
             },
@@ -266,46 +298,29 @@ export class Loader extends vscode.Disposable {
   <body>
 
 	<p>
-    <vscode-collapsible title="Data Files" description="Choose a server file" open>
-        <vscode-table zebra bordered-columns resizable columns='["95%", "5%"]'>
+    <vscode-collapsible id="collFiles" title="Data Files on Server" description="${this.serverFolderPath()}">
+	  	<vscode-icon id="cmdRefresh" name="refresh" title="Refresh File List" slot="decorations"></vscode-icon>
+        <vscode-table id="tblFiles" zebra bordered-columns resizable columns='["auto", "10%"]'>
           <vscode-table-header slot="header">
             <vscode-table-header-cell>Name</vscode-table-header-cell>
             <vscode-table-header-cell>Actions</vscode-table-header-cell>
           </vscode-table-header>
-          <vscode-table-body slot="body">`
-+   (dataFiles?.length > 0
-        ? dataFiles
-            .map(dataFile => `
-            <vscode-table-row title="${dataFile[0]}">
-              <vscode-table-cell>
-			    <vscode-radio class="radioFileName" name="radioFileName" title="Select '${dataFile[0]}'" data-filename="${dataFile[0]}">
-			      ${dataFile[0]}
-			    </vscode-radio>
-			  </vscode-table-cell>
-              <vscode-table-cell>
-			  	<span title="Delete '${dataFile[0]}'">
-			      <vscode-icon class="btnDeleteFile" name="trash" action-icon label="Delete '${dataFile[0]}'" data-filename="${dataFile[0]}"></vscode-icon>
-			    </span>
-			  </vscode-table-cell>
-            </vscode-table-row>`
-            )
-            .join("")
-        : ""
-    )
-+ `
+          <vscode-table-body id="tblbodyFiles" slot="body">
+		  </vscode-table-body>
         </vscode-table>
         <vscode-divider></vscode-divider>
 		<vscode-button id="cmdUploadFile" title="Choose a local file and upload it to the server">Upload New File to Server</vscode-button>
     </vscode-collapsible>
     </p>
 	<p>
-	    <vscode-collapsible title="Preview" id="collPreview" description="(no file selected))">
-		  <vscode-textarea id="taFilePreview" monospace rows="5" cols="80" readonly value="Select a data file"></vscode-textarea>
+	    <vscode-collapsible title="Preview" id="collPreview" description="Select data file above">`  // keep description in sync with loaderScript.js
++ `
+		  <vscode-textarea id="taFilePreview" monospace rows="5" cols="80" readonly value="No data file selected"></vscode-textarea>
 		</vscode-collapsible>
 	</p>
     <p>
-	<vscode-label for="selectSchema">Schema:</vscode-label>
-	<vscode-single-select id="selectSchema" combobox>`
+	<vscode-label for="selSchema">Schema:</vscode-label>
+	<vscode-single-select id="selSchema" combobox>`
 +	schemata.map((schema: any) => `
 		<vscode-option description="Table count: ${schema.NumberOfTables}">${schema.SchemaName}</vscode-option>`
 	).join("")
@@ -313,20 +328,21 @@ export class Loader extends vscode.Disposable {
 	</vscode-single-select>
 	</p>
     <p>
-	<vscode-label for="selectTable">Table:</vscode-label>
-	<vscode-single-select id="selectTable" combobox>
+	<vscode-label for="selTable">Table:</vscode-label>
+	<vscode-single-select id="selTable" combobox>
 	</vscode-single-select>
 	</p>
 
     <p>
-    <vscode-collapsible title="Columns" description="Structure of selected table" open>
+    <vscode-collapsible title="Columns" id="collColumns" description="Select schema and table above">`  // keep description in sync with loaderScript.js
++ `
         <vscode-table id="tblColumns" zebra bordered-columns resizable columns='["25%", "15%", "60%"]'>
           <vscode-table-header slot="header">
             <vscode-table-header-cell>Name</vscode-table-header-cell>
             <vscode-table-header-cell>DataType</vscode-table-header-cell>
             <vscode-table-header-cell>Description</vscode-table-header-cell>
           </vscode-table-header>
-          <vscode-table-body slot="body">`
+          <vscode-table-body id="tblbodyColumns" slot="body">`
 + `
           </vscode-table-body>
         </vscode-table>
@@ -359,8 +375,12 @@ export class Loader extends vscode.Disposable {
         return "";
     }
 
-	public serverFolder(): vscode.Uri {
+	public serverFolderUri(): vscode.Uri {
 		return vscode.Uri.from({ scheme: "isfs", authority: `${this.serverId}:%sys`, path: `/_vscode/${this.namespace}/DataLoader`, query: "csp" });
+	}
+
+	public serverFolderPath(): string {
+		return this._serverFolderPath;
 	}
 
     public show() {
