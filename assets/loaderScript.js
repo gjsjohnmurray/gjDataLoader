@@ -19,6 +19,7 @@ window.addEventListener('message', event => {
       break;
     case 'tables':
 			selTable.innerHTML = '';
+			document.querySelector('#cmdLoadData').disabled = true;
 			collColumns.open = false;
 			collColumns.description = "Select schema and table above"; // keep in sync with loader.ts
 			tblbodyColumns.innerHTML = '';
@@ -59,6 +60,8 @@ window.addEventListener('message', event => {
 			break;
 		case 'dataFiles':
 			tblbodyFiles.innerHTML = '';
+			document.querySelector('#cmdLoadData').disabled = true;
+			document.querySelector('#collPreview').description = 'Select data file above'; // keep in sync with loader.ts
 			message.dataFiles.forEach((dataFile) => {
 				const row = document.createElement('vscode-table-row');
 				row.title=dataFile[0];
@@ -84,6 +87,7 @@ window.addEventListener('message', event => {
 					collPreview.open = false;
 					collPreview.value = '';
 					collPreview.dataset.filename = fileName;
+					document.querySelector('#cmdLoadData').disabled = !document.querySelector('#selTable')?.value;
 					collPreview.description = fileName ? `Expand to fetch '${fileName}' and display first 10 lines` : 'Select data file above'; // keep in sync with loader.ts
 					vscode.postMessage({ command: 'selectFile', fileName });
 				});
@@ -128,11 +132,27 @@ window.onload = function() {
 		const select = event.target;
 		const schema = document.querySelector('#selSchema').value;
 		const table = select.value;
+		document.querySelector('#cmdLoadData').disabled = !document.querySelector('#collPreview')?.dataset.filename
 		vscode.postMessage({ command: 'tableChanged', schema, table });
 	});
 
 	document.querySelector('#cmdUploadFile').addEventListener('click', (event) => {
 		vscode.postMessage({ command: 'uploadFile' });
+	});
+
+	document.querySelector('#cmdLoadData').addEventListener('click', (event) => {
+		const fileName = document.querySelector('#collPreview')?.dataset.filename;
+		if (!fileName) {
+			vscode.postMessage({ command: 'showErrorMessage', text: 'You must select a data file to load.' });
+			return;
+		}
+		const schema = document.querySelector('#selSchema').value;
+		const table = document.querySelector('#selTable').value;
+		if (!schema || !table) {
+			vscode.postMessage({ command: 'showErrorMessage', text: 'You must select a schema and table to load into.' });
+			return;
+		}
+		vscode.postMessage({ command: 'loadData', schema, table, fileName });
 	});
 
 	document.querySelector('#cmdRefresh').addEventListener('click', (event) => {

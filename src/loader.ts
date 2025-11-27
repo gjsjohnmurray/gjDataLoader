@@ -264,6 +264,34 @@ export class Loader extends vscode.Disposable {
 							dataFiles: await vscode.workspace.fs.readDirectory(this.serverFolderUri()),
                         });
 						return;
+					case "showErrorMessage":
+						vscode.window.showErrorMessage(message.text);
+						return;
+                    case "loadData":
+						if (!this._serverSpec) {
+							return;
+						}
+                        schema = message.schema;
+                        table = message.table;
+                        fileName = this.serverFolderPath() + message.fileName;
+						response = await makeRESTRequest(
+							"POST",
+							this._serverSpec,
+							{ apiVersion: 1, namespace: this.namespace, path: "/action/query" },
+							{
+								query: `LOAD DATA FROM FILE '${fileName}' INTO ${schema}.${table} USING {"from":{"file":{"header":true}}}`,
+							},
+						);
+						if (!response) {
+							vscode.window.showErrorMessage(`Failed to load data from file '${fileName}' into ${schema}.${table} on server '${this.serverId}' for namespace '${this.namespace}'.`);
+							return;
+						}
+						if (response?.status !== 200) {
+							vscode.window.showErrorMessage(`Failed to load data from file '${fileName}' into ${schema}.${table} on server '${this.serverId}' for namespace '${this.namespace}'. Status: ${response?.status}`);
+							return;
+						}
+						vscode.window.showInformationMessage(`Loaded data from file '${fileName}' into ${schema}.${table} on server '${this.serverId}' for namespace '${this.namespace}'.`);
+						return;
                 }
             },
             undefined,
@@ -354,6 +382,9 @@ export class Loader extends vscode.Disposable {
         </vscode-table>
         <vscode-divider></vscode-divider>
     </vscode-collapsible>
+	</p>
+	<p>
+	<vscode-button id="cmdLoadData" disabled>Load Data from File into Table</vscode-button>
     </p>
 
     <script
