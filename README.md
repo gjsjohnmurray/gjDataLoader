@@ -11,7 +11,7 @@ TODO
 See the [CHANGELOG](CHANGELOG.md) for changes in each release.
 
 ## Known Issues
-1. Table column widths do not resize correctly after the contents are reloaded. This appears to be a bug in the [VSCode Elements](https://vscode-elements.github.io/) library. Workaround is to click on a column splitter.
+1. Table column widths do not resize correctly after the contents are loaded. This appears to be a bug in the [VSCode Elements](https://vscode-elements.github.io/) library. Workaround is to click on the column splitter between the first and second columns.
 
 ## Plans
 1. TODO

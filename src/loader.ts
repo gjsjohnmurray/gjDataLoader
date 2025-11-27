@@ -153,7 +153,7 @@ export class Loader extends vscode.Disposable {
 							this._serverSpec,
 							{ apiVersion: 1, namespace: this.namespace, path: "/action/query" },
 							{
-								query: `select COLUMN_NAME as ColumnName, DATA_TYPE as DataType, DESCRIPTION as Description from INFORMATION_SCHEMA.COLUMNS where TABLE_SCHEMA=? and TABLE_NAME=? order by ORDINAL_POSITION`,
+								query: `select COLUMN_NAME as ColumnName, DATA_TYPE as DataType, DESCRIPTION as Description, IS_NULLABLE as IsNullable, IS_GENERATED as IsGenerated, IS_UPDATABLE as IsUpdatable, IS_IDENTITY as IsIdentity, AUTO_INCREMENT as IsAutoIncrement, UNIQUE_COLUMN as IsUnique, PRIMARY_KEY as IsPrimaryKey from INFORMATION_SCHEMA.COLUMNS where TABLE_SCHEMA=? and TABLE_NAME=? order by ORDINAL_POSITION`,
 								parameters: [ schema, table ],
 							},
 						);
@@ -336,11 +336,17 @@ export class Loader extends vscode.Disposable {
     <p>
     <vscode-collapsible title="Columns" id="collColumns" description="Select schema and table above">`  // keep description in sync with loaderScript.js
 + `
-        <vscode-table id="tblColumns" zebra bordered-columns resizable columns='["25%", "15%", "60%"]'>
+        <vscode-table id="tblColumns" zebra bordered-columns resizable columns='["25%", "12%", "9%", "9%", "9%", "9%", "9%", "9%", "9%"]'>
           <vscode-table-header slot="header">
             <vscode-table-header-cell>Name</vscode-table-header-cell>
             <vscode-table-header-cell>DataType</vscode-table-header-cell>
-            <vscode-table-header-cell>Description</vscode-table-header-cell>
+            <vscode-table-header-cell>Nullable</vscode-table-header-cell>
+            <vscode-table-header-cell>Generated</vscode-table-header-cell>
+            <vscode-table-header-cell>Updatable</vscode-table-header-cell>
+            <vscode-table-header-cell>Identity</vscode-table-header-cell>
+            <vscode-table-header-cell>AutoIncrement</vscode-table-header-cell>
+            <vscode-table-header-cell>Unique</vscode-table-header-cell>
+            <vscode-table-header-cell>PrimaryKey</vscode-table-header-cell>
           </vscode-table-header>
           <vscode-table-body id="tblbodyColumns" slot="body">`
 + `

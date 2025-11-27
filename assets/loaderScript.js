@@ -36,10 +36,20 @@ window.addEventListener('message', event => {
 			collColumns.description = `Structure of table '${message.schema}.${message.table}'`;
 			message.columns.forEach((column) => {
 				const row = document.createElement('vscode-table-row');
+				let title = column.Description.replace(/<br\s*\/?>/gi, '\n').replace(/\"/gi, '&quot;');
+				if (title.replace(/\r/g, '').replace(/\n/g, '').trim().length === 0) {
+					title = column.ColumnName;
+				}
 				row.innerHTML = `
-					<vscode-table-cell>${column.ColumnName}</vscode-table-cell>
+					<vscode-table-cell title="${title}">${column.ColumnName}</vscode-table-cell>
 					<vscode-table-cell>${column.DataType}</vscode-table-cell>
-					<vscode-table-cell>${column.Description || ''}</vscode-table-cell>
+					<vscode-table-cell>${column.IsNullable === 'NO' ? '<vscode-icon name="close"></vscode-icon>' : ''}</vscode-table-cell>
+					<vscode-table-cell>${column.IsGenerated === 'YES' ? '<vscode-icon name="check"></vscode-icon>' : ''}</vscode-table-cell>
+					<vscode-table-cell>${column.IsUpdatable === 'NO' ? '<vscode-icon name="close"></vscode-icon>' : ''}</vscode-table-cell>
+					<vscode-table-cell>${column.IsIdentity === 'YES' ? '<vscode-icon name="check"></vscode-icon>' : ''}</vscode-table-cell>
+					<vscode-table-cell>${column.IsAutoIncrement === 'YES' ? '<vscode-icon name="check"></vscode-icon>' : ''}</vscode-table-cell>
+					<vscode-table-cell>${column.IsUnique === 'YES' ? '<vscode-icon name="check"></vscode-icon>' : ''}</vscode-table-cell>
+					<vscode-table-cell>${column.IsPrimaryKey === 'YES' ? '<vscode-icon name="check"></vscode-icon>' : ''}</vscode-table-cell>
 				`;
 				tblbodyColumns.appendChild(row);
 			});
@@ -126,6 +136,7 @@ window.onload = function() {
 	});
 
 	document.querySelector('#cmdRefresh').addEventListener('click', (event) => {
+		event.stopPropagation(); // prevent collapsible toggle
 		vscode.postMessage({ command: 'refreshFileList' });
 	});
 

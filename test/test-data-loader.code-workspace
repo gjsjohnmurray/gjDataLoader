@@ -32,7 +32,7 @@
 		"objectscript.conn": {
 			"server": "iris",
 			"ns": "DATALOAD-DEMO",
-			"active": false
+			"active": true
 		},
 	}
 }
