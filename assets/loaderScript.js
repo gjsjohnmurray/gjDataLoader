@@ -36,6 +36,7 @@ window.addEventListener('message', event => {
 			tblbodyColumns.innerHTML = '';
 			collColumns.description = `Structure of table '${message.schema}.${message.table}'`;
 			const wrappedHeader = `,${document.querySelector('#collPreview').dataset.header || ''},`;
+			document.querySelector('#thLoad').title = wrappedHeader === ',,' ? 'No file preview available' : 'Include in load?';
 			message.columns.forEach((column) => {
 				const checkbox = wrappedHeader.includes(',' + column.ColumnName.toUpperCase() + ',') ? `<vscode-checkbox class="chkInclude" value="${column.ColumnName}" checked></vscode-checkbox>` : '';
 				const loadTitle = wrappedHeader === ',,' ? 'No header loaded in preview' : checkbox ? 'Include in load?' : 'Not matched in header';
