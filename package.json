@@ -52,7 +52,7 @@
       "view/item/context": [
         {
           "command": "georgejames.data-loader.intersystems-servermanager",
-          "when": "view == intersystems-community_servermanager && viewItem =~ /namespace$/",
+          "when": "view == intersystems-community_servermanager && viewItem =~ /\\/namespace$/",
           "group": "inline@90"
         }
       ]
