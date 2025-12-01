@@ -268,32 +268,36 @@ export class Loader extends vscode.Disposable {
 						vscode.window.showErrorMessage(message.text);
 						return;
                     case "loadData":
-						if (!this._serverSpec) {
-							return;
-						}
-                        schema = message.schema;
-                        table = message.table;
-                        fileName = this.serverFolderPath() + message.fileName;
-						const columnList = message.columnList;
-						const loadOptionList = message.loadOptionList;
-						const strJsonOptions = JSON.stringify(message.jsonOptions || "{}");
-						response = await makeRESTRequest(
-							"POST",
-							this._serverSpec,
-							{ apiVersion: 1, namespace: this.namespace, path: "/action/query" },
-							{
-								query: `LOAD ${loadOptionList} DATA FROM FILE '${fileName}' INTO ${schema}.${table} (${columnList}) USING '${strJsonOptions}'`,
-							},
-						);
-						if (!response) {
-							vscode.window.showErrorMessage(`Failed to load data from file '${fileName}' into ${schema}.${table} on server '${this.serverId}' for namespace '${this.namespace}'.`);
-							return;
-						}
-						if (response?.status !== 200) {
-							vscode.window.showErrorMessage(`Failed to load data from file '${fileName}' into ${schema}.${table} on server '${this.serverId}' for namespace '${this.namespace}'. Status: ${response?.status}`);
-							return;
-						}
-						vscode.window.showInformationMessage(`Loaded data from file '${fileName}' into ${schema}.${table} on server '${this.serverId}' for namespace '${this.namespace}'.`);
+						do {
+							if (!this._serverSpec) {
+								break;
+							}
+							schema = message.schema;
+							table = message.table;
+							fileName = this.serverFolderPath() + message.fileName;
+							const columnList = message.columnList;
+							const loadOptionList = message.loadOptionList;
+							const strJsonOptions = JSON.stringify(message.jsonOptions || "{}");
+							response = await makeRESTRequest(
+								"POST",
+								this._serverSpec,
+								{ apiVersion: 1, namespace: this.namespace, path: "/action/query" },
+								{
+									query: `LOAD ${loadOptionList} DATA FROM FILE '${fileName}' INTO ${schema}.${table} (${columnList}) USING '${strJsonOptions}'`,
+								},
+							);
+							if (!response) {
+								vscode.window.showErrorMessage(`Failed to load data from file '${fileName}' into ${schema}.${table} on server '${this.serverId}' for namespace '${this.namespace}'.`);
+								break;
+							}
+							if (response?.status !== 200) {
+								vscode.window.showErrorMessage(`Failed to load data from file '${fileName}' into ${schema}.${table} on server '${this.serverId}' for namespace '${this.namespace}'. Status: ${response?.status}`);
+								break;
+							}
+							vscode.window.showInformationMessage(`Loaded data from file '${fileName}' into ${schema}.${table} on server '${this.serverId}' for namespace '${this.namespace}'.`);
+							break;
+						} while (false);
+						webview.postMessage({ command: "loadComplete" });
 						return;
                     case "truncateTable":
 						if (!this._serverSpec) {
@@ -458,6 +462,9 @@ export class Loader extends vscode.Disposable {
 	<p>
 		<vscode-button id="cmdLoadData" disabled>Load Data from File into Table</vscode-button>
 		<vscode-button id="cmdTruncateTable" secondary icon="warning" style="--vscode-button-secondaryHoverBackground: red;">TRUNCATE TABLE</vscode-button>
+	</p>
+	<p>
+		<vscode-progress-ring id="busy" class="hidden"></vscode-progress-ring>
 		<vscode-divider></vscode-divider>
 		<a href="${this._serverSpec.webServer.scheme}://${this._serverSpec.webServer.host}:${String(this._serverSpec.webServer.port)}${this._serverSpec.webServer.pathPrefix}/csp/sys/op/%25CSP.UI.Portal.SQL.Logs.zen?$NAMESPACE=${this.namespace}">Review SQL Diagnostic Logs in IRIS Portal <vscode-icon name="link-external"></vscode-icon></a>
     </p>

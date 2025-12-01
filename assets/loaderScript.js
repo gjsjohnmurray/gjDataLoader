@@ -138,6 +138,11 @@ window.addEventListener('message', event => {
 			collPreview.open = true;
 			vscode.postMessage({ command: 'tableChanged', schema, table });
 			break;
+		case 'loadComplete':
+			document.querySelector('#busy').classList.add('hidden');
+			document.querySelector('#cmdLoadData').disabled = false;
+			document.querySelector('#cmdTruncateTable').disabled = false;
+			break;
   }
 });
 
@@ -202,6 +207,9 @@ window.onload = function() {
 		if (chkIntoJdbcThreads && chkIntoJdbcThreads.checked) {
 			jsonOptions = { "into": { "jdbc": { "threads": parseInt(chkIntoJdbcThreads.value) } }, ...jsonOptions};
 		}
+		event.target.disabled = true;
+		document.querySelector('#cmdTruncateTable').disabled = true;
+		document.querySelector('#busy').classList.remove('hidden');
 		vscode.postMessage({ command: 'loadData', schema, table, fileName, columnList, loadOptionList, jsonOptions });
 	});
 
