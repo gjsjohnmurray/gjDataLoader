@@ -20,6 +20,7 @@ window.addEventListener('message', event => {
 		case 'tables':
 				selTable.innerHTML = '';
 				document.querySelector('#cmdLoadData').disabled = true;
+				document.querySelector('#cmdTruncateTable').classList.add('hidden');
 				collColumns.open = false;
 				collColumns.description = "Select schema and table above"; // keep in sync with loader.ts
 				tblbodyColumns.innerHTML = '';
@@ -66,6 +67,7 @@ window.addEventListener('message', event => {
 		case 'dataFiles':
 			tblbodyFiles.innerHTML = '';
 			document.querySelector('#cmdLoadData').disabled = true;
+			document.querySelector('#cmdTruncateTable').classList.add('hidden');
 			document.querySelector('#collPreview').description = 'Select data file above'; // keep in sync with loader.ts
 			message.dataFiles.forEach((dataFile) => {
 				const row = document.createElement('vscode-table-row');
@@ -94,6 +96,7 @@ window.addEventListener('message', event => {
 					collPreview.dataset.filename = fileName;
 					collPreview.dataset.header = '';
 					document.querySelector('#cmdLoadData').disabled = true; //!document.querySelector('#selTable')?.value;
+					document.querySelector('#cmdTruncateTable').classList.add('hidden');
 					collPreview.description = fileName ? `Expand to fetch '${fileName}' and display first 10 lines` : 'Select data file above'; // keep in sync with loader.ts
 					vscode.postMessage({ command: 'selectFile', fileName });
 
@@ -126,10 +129,13 @@ window.addEventListener('message', event => {
 			taFilePreview.value = message.previewLines || '';
 			const header = taFilePreview.value.split('\n')[0] || '';
 			collPreview.dataset.header = header.split(',').map(columnName => columnName.trim().toUpperCase()).join(',');
-			document.querySelector('#cmdLoadData').disabled = false;
-			collPreview.open = true;
 			const schema = document.querySelector('#selSchema').value;
 			const table = document.querySelector('#selTable').value;
+			if (header.length > 0 && schema !== '' && table !== '') {
+				document.querySelector('#cmdLoadData').disabled = false;
+				document.querySelector('#cmdTruncateTable').classList.remove('hidden');
+			};
+			collPreview.open = true;
 			vscode.postMessage({ command: 'tableChanged', schema, table });
 			break;
   }
@@ -150,7 +156,14 @@ window.onload = function() {
 		const schema = document.querySelector('#selSchema').value;
 		const table = select.value;
 		const collPreview = document.querySelector('#collPreview');
-		document.querySelector('#cmdLoadData').disabled = !collPreview?.dataset.filename || !collPreview.dataset.header;
+		if (!collPreview?.dataset.filename || !collPreview.dataset.header) {
+			document.querySelector('#cmdLoadData').disabled = true;
+			document.querySelector('#cmdTruncateTable').classList.add('hidden');
+		}
+		else {
+			document.querySelector('#cmdLoadData').disabled = false;
+			document.querySelector('#cmdTruncateTable').classList.remove('hidden');
+		}
 		vscode.postMessage({ command: 'tableChanged', schema, table });
 	});
 
@@ -178,6 +191,17 @@ window.onload = function() {
 		});
 		columnList = columnList.slice(1);
 		vscode.postMessage({ command: 'loadData', schema, table, fileName, columnList });
+	});
+
+	document.querySelector('#cmdTruncateTable').addEventListener('click', (event) => {
+		const schema = document.querySelector('#selSchema').value;
+		const table = document.querySelector('#selTable').value;
+		if (!schema || !table) {
+			// UI is supposed to prevent this from ever occurring
+			vscode.postMessage({ command: 'showErrorMessage', text: 'You must select a schema and table to TRUNCATE.' });
+			return;
+		}
+		vscode.postMessage({ command: 'truncateTable', schema, table });
 	});
 
 	document.querySelector('#cmdRefresh').addEventListener('click', (event) => {

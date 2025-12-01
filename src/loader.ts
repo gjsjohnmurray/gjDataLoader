@@ -293,6 +293,56 @@ export class Loader extends vscode.Disposable {
 						}
 						vscode.window.showInformationMessage(`Loaded data from file '${fileName}' into ${schema}.${table} on server '${this.serverId}' for namespace '${this.namespace}'.`);
 						return;
+                    case "truncateTable":
+						if (!this._serverSpec) {
+							return;
+						}
+                        schema = message.schema;
+                        table = message.table;
+						response = await makeRESTRequest(
+							"POST",
+							this._serverSpec,
+							{ apiVersion: 1, namespace: this.namespace, path: "/action/query" },
+							{
+								query: `SELECT COUNT(*) FROM ${schema}.${table}`,
+							},
+						);
+						if (!response) {
+							vscode.window.showErrorMessage(`Failed to count records in ${schema}.${table} on server '${this.serverId}' for namespace '${this.namespace}'.`);
+							return;
+						}
+						if (response?.status !== 200) {
+							vscode.window.showErrorMessage(`Failed to count records in ${schema}.${table} on server '${this.serverId}' for namespace '${this.namespace}'. Status: ${response?.status}`);
+							return;
+						}
+						const recordCount = response.data.result.content[0].Aggregate_1;
+						if (recordCount === 0) {
+							vscode.window.showInformationMessage(`Table ${schema}.${table} on server '${this.serverId}' for namespace '${this.namespace}' is already empty.`);
+							return;
+						}
+						vscode.window.showWarningMessage(`Delete all ${recordCount} records from ${schema}.${table} on server '${this.serverId}' for namespace '${this.namespace}' and reset its counters?`, { modal: true, }, { title: 'No' }, { title: 'Yes' }, ).then( async (selection) => {
+							if (selection?.title !== 'Yes') {
+								return;
+							}
+							response = await makeRESTRequest(
+								"POST",
+								this._serverSpec!,
+								{ apiVersion: 1, namespace: this.namespace, path: "/action/query" },
+								{
+									query: `TRUNCATE TABLE ${schema}.${table}`,
+								},
+							);
+							if (!response) {
+								vscode.window.showErrorMessage(`Failed to truncate table ${schema}.${table} on server '${this.serverId}' for namespace '${this.namespace}'.`);
+								return;
+							}
+							if (response?.status !== 200) {
+								vscode.window.showErrorMessage(`Failed to truncate table ${schema}.${table} on server '${this.serverId}' for namespace '${this.namespace}'. Status: ${response?.status}`);
+								return;
+							}
+							vscode.window.showInformationMessage(`Truncated table ${schema}.${table} on server '${this.serverId}' for namespace '${this.namespace}'.`);
+						});
+						return;
                 }
             },
             undefined,
@@ -323,6 +373,11 @@ export class Loader extends vscode.Disposable {
       )}"
       id="vscode-codicon-stylesheet"
     />
+	<style type="text/css">
+	  .hidden {
+	    display: none;
+	  }
+	</style>
   </head>
   <body>
 
@@ -387,6 +442,7 @@ export class Loader extends vscode.Disposable {
 	</p>
 	<p>
 	<vscode-button id="cmdLoadData" disabled>Load Data from File into Table</vscode-button>
+	<vscode-button id="cmdTruncateTable" secondary icon="warning" style="--vscode-button-secondaryHoverBackground: red;">TRUNCATE TABLE</vscode-button>
     </p>
 
     <script
