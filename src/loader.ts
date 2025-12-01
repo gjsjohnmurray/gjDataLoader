@@ -274,12 +274,13 @@ export class Loader extends vscode.Disposable {
                         schema = message.schema;
                         table = message.table;
                         fileName = this.serverFolderPath() + message.fileName;
+						const columnList = message.columnList;
 						response = await makeRESTRequest(
 							"POST",
 							this._serverSpec,
 							{ apiVersion: 1, namespace: this.namespace, path: "/action/query" },
 							{
-								query: `LOAD DATA FROM FILE '${fileName}' INTO ${schema}.${table} USING {"from":{"file":{"header":true}}}`,
+								query: `LOAD DATA FROM FILE '${fileName}' INTO ${schema}.${table} (${columnList}) USING {"from":{"file":{"header":true}}}`,
 							},
 						);
 						if (!response) {
@@ -364,13 +365,14 @@ export class Loader extends vscode.Disposable {
     <p>
     <vscode-collapsible title="Columns" id="collColumns" description="Select schema and table above">`  // keep description in sync with loaderScript.js
 + `
-        <vscode-table id="tblColumns" zebra bordered-columns resizable columns='["25%", "12%", "9%", "9%", "9%", "9%", "9%", "9%", "9%"]'>
+        <vscode-table id="tblColumns" zebra bordered-columns resizable columns='["4%", "auto", "10%", "9%", "9%", "9%", "9%", "9%", "9%", "9%"]'>
           <vscode-table-header slot="header">
+		    <vscode-table-header-cell>Load?</vscode-table-header-cell>
             <vscode-table-header-cell>Name</vscode-table-header-cell>
             <vscode-table-header-cell>DataType</vscode-table-header-cell>
-            <vscode-table-header-cell>Nullable</vscode-table-header-cell>
+            <vscode-table-header-cell>Not Nullable</vscode-table-header-cell>
             <vscode-table-header-cell>Generated</vscode-table-header-cell>
-            <vscode-table-header-cell>Updatable</vscode-table-header-cell>
+            <vscode-table-header-cell>Not Updatable</vscode-table-header-cell>
             <vscode-table-header-cell>Identity</vscode-table-header-cell>
             <vscode-table-header-cell>AutoIncrement</vscode-table-header-cell>
             <vscode-table-header-cell>Unique</vscode-table-header-cell>

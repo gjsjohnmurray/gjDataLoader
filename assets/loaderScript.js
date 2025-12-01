@@ -5,43 +5,47 @@ var tmrPlaceholder = null;
 // Handle the message inside the webview
 window.addEventListener('message', event => {
 
-  const message = event.data; // The JSON data our extension sent
-  const selTable = document.querySelector('#selTable');
+	const message = event.data; // The JSON data our extension sent
+	const selTable = document.querySelector('#selTable');
 	const tblbodyColumns = document.querySelector('#tblbodyColumns');
 	const tblbodyFiles = document.querySelector('#tblbodyFiles');
 	const collFiles = document.querySelector('#collFiles');
 	const collColumns = document.querySelector('#collColumns');
 	switch (message.command) {
-    case 'load':
-      //console.log(message.serverSpec);
-      //console.log(message.namespace);
-      //console.log(message.schemata);
-      break;
-    case 'tables':
-			selTable.innerHTML = '';
-			document.querySelector('#cmdLoadData').disabled = true;
-			collColumns.open = false;
-			collColumns.description = "Select schema and table above"; // keep in sync with loader.ts
-			tblbodyColumns.innerHTML = '';
-			message.tables.forEach((table) => {
-				const option = document.createElement('vscode-option');
-				option.value = table.TableName;
-				option.textContent = table.TableName;
-				const description = table.Description.replace(/<br\s*\/?>/gi, '\n') || '';
-				option.description = description.length > 200 ? description.substring(0, 197) + '...' : description;
-				selTable.appendChild(option);
-			});
-      break;
+	    case 'load':
+			//console.log(message.serverSpec);
+			//console.log(message.namespace);
+			//console.log(message.schemata);
+			break;
+		case 'tables':
+				selTable.innerHTML = '';
+				document.querySelector('#cmdLoadData').disabled = true;
+				collColumns.open = false;
+				collColumns.description = "Select schema and table above"; // keep in sync with loader.ts
+				tblbodyColumns.innerHTML = '';
+				message.tables.forEach((table) => {
+					const option = document.createElement('vscode-option');
+					option.value = table.TableName;
+					option.textContent = table.TableName;
+					const description = table.Description.replace(/<br\s*\/?>/gi, '\n') || '';
+					option.description = description.length > 200 ? description.substring(0, 197) + '...' : description;
+					selTable.appendChild(option);
+				});
+		break;
 		case 'columns':
 			tblbodyColumns.innerHTML = '';
 			collColumns.description = `Structure of table '${message.schema}.${message.table}'`;
+			const wrappedHeader = `,${document.querySelector('#collPreview').dataset.header || ''},`;
 			message.columns.forEach((column) => {
+				const checkbox = wrappedHeader.includes(',' + column.ColumnName.toUpperCase() + ',') ? `<vscode-checkbox class="chkInclude" value="${column.ColumnName}" checked></vscode-checkbox>` : '';
+				const loadTitle = wrappedHeader === ',,' ? 'No header loaded in preview' : checkbox ? 'Include in load?' : 'Not matched in header';
 				const row = document.createElement('vscode-table-row');
 				let title = column.Description.replace(/<br\s*\/?>/gi, '\n').replace(/\"/gi, '&quot;');
 				if (title.replace(/\r/g, '').replace(/\n/g, '').trim().length === 0) {
 					title = column.ColumnName;
 				}
 				row.innerHTML = `
+					<vscode-table-cell title="${loadTitle}">${checkbox}</vscode-table-cell>
 					<vscode-table-cell title="${title}">${column.ColumnName}</vscode-table-cell>
 					<vscode-table-cell>${column.DataType}</vscode-table-cell>
 					<vscode-table-cell>${column.IsNullable === 'NO' ? '<vscode-icon name="close"></vscode-icon>' : ''}</vscode-table-cell>
@@ -87,9 +91,15 @@ window.addEventListener('message', event => {
 					collPreview.open = false;
 					collPreview.value = '';
 					collPreview.dataset.filename = fileName;
-					document.querySelector('#cmdLoadData').disabled = !document.querySelector('#selTable')?.value;
+					collPreview.dataset.header = '';
+					document.querySelector('#cmdLoadData').disabled = true; //!document.querySelector('#selTable')?.value;
 					collPreview.description = fileName ? `Expand to fetch '${fileName}' and display first 10 lines` : 'Select data file above'; // keep in sync with loader.ts
 					vscode.postMessage({ command: 'selectFile', fileName });
+
+					// Clear checkbox column contents
+					const schema = document.querySelector('#selSchema').value;
+					const table = document.querySelector('#selTable').value;
+					vscode.postMessage({ command: 'tableChanged', schema, table });
 				});
 			});
 
@@ -113,7 +123,13 @@ window.addEventListener('message', event => {
 			}
 			collPreview.description = `First 10 lines of '${message.fileName}'`;
 			taFilePreview.value = message.previewLines || '';
+			const header = taFilePreview.value.split('\n')[0] || '';
+			collPreview.dataset.header = header.split(',').map(columnName => columnName.trim().toUpperCase()).join(',');
+			document.querySelector('#cmdLoadData').disabled = false;
 			collPreview.open = true;
+			const schema = document.querySelector('#selSchema').value;
+			const table = document.querySelector('#selTable').value;
+			vscode.postMessage({ command: 'tableChanged', schema, table });
 			break;
   }
 });
@@ -132,7 +148,8 @@ window.onload = function() {
 		const select = event.target;
 		const schema = document.querySelector('#selSchema').value;
 		const table = select.value;
-		document.querySelector('#cmdLoadData').disabled = !document.querySelector('#collPreview')?.dataset.filename
+		const collPreview = document.querySelector('#collPreview');
+		document.querySelector('#cmdLoadData').disabled = !collPreview?.dataset.filename || !collPreview.dataset.header;
 		vscode.postMessage({ command: 'tableChanged', schema, table });
 	});
 
@@ -152,7 +169,14 @@ window.onload = function() {
 			vscode.postMessage({ command: 'showErrorMessage', text: 'You must select a schema and table to load into.' });
 			return;
 		}
-		vscode.postMessage({ command: 'loadData', schema, table, fileName });
+		let columnList='';
+		document.querySelectorAll('.chkInclude').forEach((checkbox) => {
+			if (checkbox.checked) {
+				columnList += ',' + checkbox.value;
+			}
+		});
+		columnList = columnList.slice(1);
+		vscode.postMessage({ command: 'loadData', schema, table, fileName, columnList });
 	});
 
 	document.querySelector('#cmdRefresh').addEventListener('click', (event) => {
