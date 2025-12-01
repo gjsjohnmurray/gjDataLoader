@@ -190,7 +190,19 @@ window.onload = function() {
 			}
 		});
 		columnList = columnList.slice(1);
-		vscode.postMessage({ command: 'loadData', schema, table, fileName, columnList });
+		let loadOptionList='';
+		document.querySelectorAll('.chkLoadOption').forEach((checkbox) => {
+			if (checkbox.checked) {
+				loadOptionList += ' ' + checkbox.value;
+			}
+		});
+		loadOptionList = loadOptionList.slice(1);
+		let jsonOptions = { "from": { "file": { "header": true } } };
+		const chkIntoJdbcThreads = document.querySelector('#chkIntoJdbcThreads');
+		if (chkIntoJdbcThreads && chkIntoJdbcThreads.checked) {
+			jsonOptions = { "into": { "jdbc": { "threads": parseInt(chkIntoJdbcThreads.value) } }, ...jsonOptions};
+		}
+		vscode.postMessage({ command: 'loadData', schema, table, fileName, columnList, loadOptionList, jsonOptions });
 	});
 
 	document.querySelector('#cmdTruncateTable').addEventListener('click', (event) => {

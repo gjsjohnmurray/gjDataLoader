@@ -275,12 +275,14 @@ export class Loader extends vscode.Disposable {
                         table = message.table;
                         fileName = this.serverFolderPath() + message.fileName;
 						const columnList = message.columnList;
+						const loadOptionList = message.loadOptionList;
+						const strJsonOptions = JSON.stringify(message.jsonOptions || "{}");
 						response = await makeRESTRequest(
 							"POST",
 							this._serverSpec,
 							{ apiVersion: 1, namespace: this.namespace, path: "/action/query" },
 							{
-								query: `LOAD DATA FROM FILE '${fileName}' INTO ${schema}.${table} (${columnList}) USING {"from":{"file":{"header":true}}}`,
+								query: `LOAD ${loadOptionList} DATA FROM FILE '${fileName}' INTO ${schema}.${table} (${columnList}) USING '${strJsonOptions}'`,
 							},
 						);
 						if (!response) {
@@ -441,8 +443,23 @@ export class Loader extends vscode.Disposable {
     </vscode-collapsible>
 	</p>
 	<p>
-	<vscode-button id="cmdLoadData" disabled>Load Data from File into Table</vscode-button>
-	<vscode-button id="cmdTruncateTable" secondary icon="warning" style="--vscode-button-secondaryHoverBackground: red;">TRUNCATE TABLE</vscode-button>
+	<vscode-collapsible title="Advanced Load Options">
+		<vscode-checkbox-group variant="vertical">
+			<vscode-checkbox class="chkLoadOption" value="%NOCHECK">%NOCHECK — Disables unique value checking, foreign key referential integrity checking, NOT NULL constraints (required field checks), and validation for column data types, maximum column lengths, and column data constraints.</vscode-checkbox>
+			<vscode-checkbox class="chkLoadOption" value="%NOINDEX">%NOINDEX — Disables the defining or building of index maps during INSERT processing. During the LOAD BULK DATA operation, SQL statements run against the target table might be incomplete or return incorrect results.</vscode-checkbox>
+			<vscode-checkbox class="chkLoadOption" value="%NOLOCK">%NOLOCK — Disables locking of the row upon INSERT.</vscode-checkbox>
+			<vscode-checkbox class="chkLoadOption" value="%NOJOURN">%NOJOURN — Suppresses journaling and disables transactions for the duration of the insert operations. Acquires a table-level lock on the target table, but each row is inserted with %NOLOCK. The table level lock is released when the load completes.</vscode-checkbox>
+			<vscode-checkbox id="chkIntoJdbcThreads" value=1>Single-threaded load — Guarantees that data is loaded into the table in the exact order it appears in the file.</vscode-checkbox>
+		</vscode-checkbox-group>
+		<vscode-divider></vscode-divider>
+		<a href="https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=RSQL_loaddata#RSQL_loaddata_desc_bulk">Documentation <vscode-icon name="link-external"></vscode-icon></a>
+	</vscode-collapsible>
+	</p>
+	<p>
+		<vscode-button id="cmdLoadData" disabled>Load Data from File into Table</vscode-button>
+		<vscode-button id="cmdTruncateTable" secondary icon="warning" style="--vscode-button-secondaryHoverBackground: red;">TRUNCATE TABLE</vscode-button>
+		<vscode-divider></vscode-divider>
+		<a href="${this._serverSpec.webServer.scheme}://${this._serverSpec.webServer.host}:${String(this._serverSpec.webServer.port)}${this._serverSpec.webServer.pathPrefix}/csp/sys/op/%25CSP.UI.Portal.SQL.Logs.zen?$NAMESPACE=${this.namespace}">Review SQL Diagnostic Logs in IRIS Portal <vscode-icon name="link-external"></vscode-icon></a>
     </p>
 
     <script
