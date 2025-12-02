@@ -1,0 +1,147 @@
+name: CI
+permissions:
+  contents: write
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - ".vscode/**"
+      - ".github/**"
+      - "*.md"
+      - "**/*.md"
+  pull_request:
+    branches:
+      - main
+  release:
+    types:
+      - released
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.base_ref || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Fetch tags
+        run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+      - name: Set package name and version
+        id: set-version
+        run: |
+          set -x
+          VERSION=$(jq -r '.version' package.json | cut -d- -f1)
+          [ $GITHUB_EVENT_NAME == 'release' ] && VERSION=${{ github.event.release.tag_name }} && VERSION=${VERSION/v/}
+          git tag -l | cat
+          [ $GITHUB_EVENT_NAME == 'push' ] && VERSION+=-beta && VERSION+=.$(($(git tag -l "v$VERSION.*" | sort -nt. -k4 2>/dev/null | tail -1 | cut -d. -f4)+1))
+          [ $GITHUB_EVENT_NAME == 'pull_request' ] && VERSION+=-dev.${{ github.event.pull_request.number }}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          NAME=$(jq -r '.name' package.json)-$VERSION
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+          tmp=$(mktemp)
+          jq --arg version "$VERSION" '.version = $version' package.json > "$tmp" && mv "$tmp" package.json
+          echo $VERSION > meta.version
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - name: Build package
+        run: npx vsce package -o ${{ steps.set-version.outputs.name }}.vsix
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.set-version.outputs.name }}.vsix
+          path: ${{ steps.set-version.outputs.name }}.vsix
+          retention-days: 30
+      - name: Upload metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: meta
+          retention-days: 1
+          path: meta.version
+  beta:
+    runs-on: ubuntu-latest
+    needs: build
+    if: success() && github.event_name == 'push'
+    steps:
+      - name: Download metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: meta
+          path: .
+      - name: Set version output
+        id: set-version
+        run: |
+          set -x
+          echo "version=`cat meta.version`" >> $GITHUB_OUTPUT
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+         pattern: '**/*.vsix'
+      - name: Create Release
+        id: create-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.set-version.outputs.version }}
+          prerelease: ${{ github.event_name != 'release' }}
+          files: '**/*.vsix'
+          token: ${{ secrets.GITHUB_TOKEN }}
+  publish:
+    runs-on: ubuntu-latest
+    needs: build
+    if: success() && github.event_name == 'release'
+    steps:
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install -g @vscode/vsce
+      - name: Download packages
+        uses: actions/download-artifact@v4
+      - name: Attach packages to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: '**/*.vsix'
+          body: See CHANGELOG for details
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish to VS Code Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
+        if: env.VSCE_PAT != null
+        run: vsce publish --packagePath $(find . -iname "*.vsix" -type f)
+  bump_version:
+    runs-on: ubuntu-latest
+    needs: [build, publish]
+    if: github.event_name == 'release'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Download metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: meta
+          path: .
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Create commit
+        run: |
+          VERSION=`cat meta.version`
+          NEXT_VERSION=`cat meta.version | awk -F. '/[0-9]+\./{$NF++;print}' OFS=.`
+          tmp=$(mktemp)
+          git config --global user.name 'ProjectBot'
+          git config --global user.email 'bot@users.noreply.github.com'
+          jq --arg version "${NEXT_VERSION}-SNAPSHOT" '.version = $version' package.json > "$tmp" && mv "$tmp" package.json
+          git add package.json
+          git commit -m 'auto bump version with release [skip ci]'
+          git push
