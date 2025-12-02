@@ -38,7 +38,7 @@ A **"TRUNCATE TABLE"** button can be used to run that SQL command on the target 
 
 An **ADVANCED LOAD OPTIONS** section allows you to modify certain aspects of the data load process.
 
-By design the LOAD DATA command will succeed even if some (potentially all) of the records in the data file are skipped. Full details are logged on the server's SQL Diagnostic Logs, and a link is provided with which to review these in IRIS Portal in an external web browser.
+By design the LOAD DATA command will succeed even if some (potentially all) of the records in the data file are skipped. Full details are logged on the server's SQL Diagnostic Logs, and a link is provided with which to review these in IRIS Portal in an external web browser (requires IRIS 2023.1 or later).
 
 ## Release Notes
 
