@@ -6,10 +6,6 @@
 		{
 			"name": "iris:DATALOAD-DEMO",
 			"uri": "isfs://iris:dataload-demo/"
-		},
-		{
-			"name": "iris (/_vscode)",
-			"uri": "isfs://iris:%sys/_vscode?csp"
 		}
 	],
 	"settings": {
@@ -34,5 +30,21 @@
 			"ns": "DATALOAD-DEMO",
 			"active": true
 		},
+		"sqltools.connections": [
+			{
+				"connectionMethod": "Server Definition",
+				"showSystem": false,
+				"previewLimit": 50,
+				"driver": "InterSystems IRIS",
+				"name": "DATALOAD-DEMO",
+				"connectString": "iris:DATALOAD-DEMO"
+			}
+		],
+	},
+	"extensions": {
+		"recommendations": [
+			"intersystems-community.sqltools-intersystems-driver",
+			"georgejames.data-loader"
+		]
 	}
 }
