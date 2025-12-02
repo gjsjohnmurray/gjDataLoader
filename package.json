@@ -2,7 +2,7 @@
   "name": "data-loader",
   "displayName": "gj :: dataLoader",
   "description": "Load data into InterSystems IRIS servers from text files",
-  "version": "0.0.1-SNAPSHOT",
+  "version": "0.9.0",
   "preview": true,
   "publisher": "georgejames",
   "icon": "images/extension-icon.png",
