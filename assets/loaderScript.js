@@ -7,6 +7,8 @@ window.addEventListener('message', event => {
 
 	const message = event.data; // The JSON data our extension sent
 	const selTable = document.querySelector('#selTable');
+	const tblColumns = document.querySelector('#tblColumns');
+	const tblFiles = document.querySelector('#tblFiles');
 	const tblbodyColumns = document.querySelector('#tblbodyColumns');
 	const tblbodyFiles = document.querySelector('#tblbodyFiles');
 	const collFiles = document.querySelector('#collFiles');
@@ -61,8 +63,7 @@ window.addEventListener('message', event => {
 				tblbodyColumns.appendChild(row);
 			});
 			collColumns.open = true;
-			// Below gives a script error with v2.3.1 - see https://github.com/vscode-elements/elements/issues/561
-			// tblColumns.columns = tblColumns.columns; // force refresh
+			tblColumns.columns = tblColumns.columns; // force refresh - only seems to correct column widths the first time
 			break;
 		case 'dataFiles':
 			tblbodyFiles.innerHTML = '';
@@ -113,8 +114,7 @@ window.addEventListener('message', event => {
 				});
 			});
 			collFiles.open = true;
-			// Below gives a script error with v2.3.1 - see https://github.com/vscode-elements/elements/issues/561
-			//tblFiles.columns = tblFiles.columns; // force refresh
+			tblFiles.columns = tblFiles.columns; // force refresh - only seems to correct column widths the first time
 			break;
 		case 'filePreview':
 			const collPreview = document.querySelector('#collPreview');
