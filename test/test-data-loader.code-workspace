@@ -9,6 +9,7 @@
 		}
 	],
 	"settings": {
+		"intersystems.language-server.suggestTheme": false,
 		"intersystems.servers": {
 			"iris": {
 				"webServer": {
@@ -28,8 +29,9 @@
 		"objectscript.conn": {
 			"server": "iris",
 			"ns": "DATALOAD-DEMO",
-			"active": true
+			"active": false
 		},
+		"objectscript.showProposedApiPrompt": false,
 		"sqltools.connections": [
 			{
 				"connectionMethod": "Server Definition",
@@ -40,11 +42,13 @@
 				"connectString": "iris:DATALOAD-DEMO"
 			}
 		],
+		"chat.disableAIFeatures": true,
 	},
 	"extensions": {
 		"recommendations": [
+			"georgejames.data-loader",
+			"intersystems.language-server",
 			"intersystems-community.sqltools-intersystems-driver",
-			"georgejames.data-loader"
 		]
 	}
 }
