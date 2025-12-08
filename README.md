@@ -45,7 +45,7 @@ By design the LOAD DATA command will succeed even if some (potentially all) of t
 See the [CHANGELOG](CHANGELOG.md) for changes in each release.
 
 ## Known Issues
-1. Table column widths do not resize correctly after the contents are loaded. This is a bug in the [VSCode Elements](https://vscode-elements.github.io/) library. Work around it by clicking on the column splitter between the misaligned columns.
+1. Table column widths do not resize correctly after the contents are reloaded. This seems to be caused by a bug in the [VSCode Elements](https://vscode-elements.github.io/) library. Work around it by clicking on the column splitters between the misaligned columns.
 
 ## Feedback
 
@@ -53,6 +53,8 @@ Please use https://github.com/gjsjohnmurray/gjDataLoader/issues to report bugs a
 
 ## About George James Software
 
-Known for our expertise in InterSystems technologies, George James Software has been providing innovative software solutions for over 35 years. We focus on activities that can help our customers with the support and maintenance of their systems and applications. Our activities include consulting, training, support, and developer tools - with Deltanji source control being our flagship tool. Our tools augment InterSystems' technology and can help customers with the maintainability and supportability of their applications over the long term. 
+Known for our expertise in InterSystems technologies, George James Software has been providing innovative software solutions for over 35 years. We focus on activities that can help our customers with the support and maintenance of their systems and applications. Our activities include consulting, training, support, and developer tools - with Deltanji source control being our flagship tool. Our tools augment InterSystems' technology and can help customers with the maintainability and supportability of their applications over the long term.
+
+We also offer VS Code training and extension development services.
 
 To find out more, go to our website - [georgejames.com](https://georgejames.com) 
