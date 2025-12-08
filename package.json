@@ -29,7 +29,8 @@
   ],
   "private": true,
   "extensionDependencies": [
-    "intersystems-community.servermanager"
+    "intersystems-community.servermanager",
+    "intersystems-community.vscode-objectscript"
   ],
   "activationEvents": [],
   "main": "./dist/extension.js",
